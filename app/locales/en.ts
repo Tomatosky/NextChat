@@ -573,6 +573,10 @@ const en: LocaleType = {
       Title: "Max Tokens",
       SubTitle: "Maximum length of input tokens and generated tokens",
     },
+    EnableThinking: {
+      Title: "Enable Thinking Mode (enable_thinking)",
+      SubTitle: "Control whether the model enables thinking mode",
+    },
     PresencePenalty: {
       Title: "Presence Penalty",
       SubTitle:

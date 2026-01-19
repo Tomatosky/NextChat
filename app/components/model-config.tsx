@@ -110,6 +110,25 @@ export function ModelConfigList(props: {
         ></input>
       </ListItem>
 
+      <ListItem
+        title={Locale.Settings.EnableThinking.Title}
+        subTitle={Locale.Settings.EnableThinking.SubTitle}
+      >
+        <Select
+          aria-label={Locale.Settings.EnableThinking.Title}
+          value={props.modelConfig.enable_thinking ? "true" : "false"}
+          onChange={(e) =>
+            props.updateConfig(
+              (config) =>
+                (config.enable_thinking = e.currentTarget.value === "true"),
+            )
+          }
+        >
+          <option value="false">关闭</option>
+          <option value="true">开启</option>
+        </Select>
+      </ListItem>
+
       {props.modelConfig?.providerName == ServiceProvider.Google ? null : (
         <>
           <ListItem
