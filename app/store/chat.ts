@@ -1,5 +1,7 @@
 import {
+  getInputTokenBudgetByModel,
   getMessageTextContent,
+  isDeepSeekV4Model,
   isDalle3,
   safeLocalStorage,
   trimTopic,
@@ -34,7 +36,10 @@ import { createPersistStore } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";
 import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
-import { collectModelsWithDefaultModel } from "../utils/model";
+import {
+  collectModelsWithDefaultModel,
+  migrateLegacyDeepSeekModelConfig,
+} from "../utils/model";
 import { createEmptyMask, Mask } from "./mask";
 import { executeMcpAction, getAllTools, isMcpEnabled } from "../mcp/actions";
 import { extractMcpJson, isMcpJson } from "../mcp/utils";
@@ -440,7 +445,7 @@ export const useChatStore = createPersistStore(
         });
 
         // get recent messages
-        const recentMessages = await get().getMessagesWithMemory();
+        const recentMessages = await get().getMessagesWithMemory(userMessage);
         const sendMessages = recentMessages.concat(userMessage);
         const messageIndex = session.messages.length + 1;
 
@@ -539,7 +544,7 @@ export const useChatStore = createPersistStore(
         }
       },
 
-      async getMessagesWithMemory() {
+      async getMessagesWithMemory(newestMessage?: ChatMessage) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
         const clearContextIndex = session.clearContextIndex ?? 0;
@@ -614,25 +619,42 @@ export const useChatStore = createPersistStore(
           : shortTermMemoryStartIndex;
         // and if user has cleared history messages, we should exclude the memory too.
         const contextStartIndex = Math.max(clearContextIndex, memoryStartIndex);
-        const maxTokenThreshold = modelConfig.max_tokens;
+        const maxTokenThreshold = getInputTokenBudgetByModel(
+          modelConfig.model,
+          modelConfig.max_tokens,
+          modelConfig.max_tokens,
+        );
+        const fixedPrompts = [
+          ...systemPrompts,
+          ...longTermMemoryPrompts,
+          ...contextPrompts,
+        ];
+        const shouldReserveFixedTokens = isDeepSeekV4Model(modelConfig.model);
+        let tokenCount = shouldReserveFixedTokens
+          ? countMessages(
+              newestMessage ? fixedPrompts.concat(newestMessage) : fixedPrompts,
+            )
+          : 0;
 
         // get recent messages as much as possible
         const reversedRecentMessages = [];
-        for (
-          let i = totalMessageCount - 1, tokenCount = 0;
-          i >= contextStartIndex && tokenCount < maxTokenThreshold;
-          i -= 1
-        ) {
+        for (let i = totalMessageCount - 1; i >= contextStartIndex; i -= 1) {
+          if (tokenCount >= maxTokenThreshold) break;
           const msg = messages[i];
           if (!msg || msg.isError) continue;
-          tokenCount += estimateTokenLength(getMessageTextContent(msg));
+          const messageTokens = estimateTokenLength(getMessageTextContent(msg));
+          if (
+            shouldReserveFixedTokens &&
+            tokenCount + messageTokens > maxTokenThreshold
+          ) {
+            break;
+          }
+          tokenCount += messageTokens;
           reversedRecentMessages.push(msg);
         }
         // concat all messages
         const recentMessages = [
-          ...systemPrompts,
-          ...longTermMemoryPrompts,
-          ...contextPrompts,
+          ...fixedPrompts,
           ...reversedRecentMessages.reverse(),
         ];
 
@@ -860,7 +882,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 3.3,
+    version: 3.4,
     migrate(persistedState, version) {
       const state = persistedState as any;
       const newState = JSON.parse(
@@ -922,6 +944,12 @@ export const useChatStore = createPersistStore(
           const config = useAppConfig.getState();
           s.mask.modelConfig.compressModel = "";
           s.mask.modelConfig.compressProviderName = "";
+        });
+      }
+
+      if (version < 3.4) {
+        newState.sessions.forEach((session) => {
+          migrateLegacyDeepSeekModelConfig(session.mask.modelConfig);
         });
       }
 

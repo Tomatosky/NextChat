@@ -48,6 +48,50 @@ export function getModelProvider(modelWithProvider: string): [string, string?] {
   return [model, provider];
 }
 
+const LEGACY_DEEPSEEK_MODELS = new Set([
+  "deepseek-chat",
+  "deepseek-coder",
+  "deepseek-reasoner",
+]);
+
+export function isLegacyDeepSeekModel(model: string, providerName?: string) {
+  return (
+    providerName?.toLowerCase() === ServiceProvider.DeepSeek.toLowerCase() &&
+    LEGACY_DEEPSEEK_MODELS.has(model)
+  );
+}
+
+export function migrateLegacyDeepSeekModelConfig<
+  T extends {
+    model: string;
+    providerName?: string;
+    enable_thinking?: boolean;
+    compressModel?: string;
+    compressProviderName?: string;
+  },
+>(modelConfig: T) {
+  if (isLegacyDeepSeekModel(modelConfig.model, modelConfig.providerName)) {
+    const wasReasoner = modelConfig.model === "deepseek-reasoner";
+    modelConfig.model = wasReasoner ? "deepseek-v4-pro" : "deepseek-v4-flash";
+    if (wasReasoner) modelConfig.enable_thinking = true;
+  }
+
+  if (
+    modelConfig.compressModel &&
+    isLegacyDeepSeekModel(
+      modelConfig.compressModel,
+      modelConfig.compressProviderName,
+    )
+  ) {
+    modelConfig.compressModel =
+      modelConfig.compressModel === "deepseek-reasoner"
+        ? "deepseek-v4-pro"
+        : "deepseek-v4-flash";
+  }
+
+  return modelConfig;
+}
+
 export function collectModelTable(
   models: readonly LLMModel[],
   customModels: string,

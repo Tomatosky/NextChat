@@ -15,6 +15,10 @@ import {
   ServiceProvider,
 } from "../constant";
 import { createPersistStore } from "../utils/store";
+import {
+  isLegacyDeepSeekModel,
+  migrateLegacyDeepSeekModelConfig,
+} from "../utils/model";
 import type { Voice } from "rt-client";
 
 export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
@@ -196,15 +200,19 @@ export const useAppConfig = createPersistStore(
   }),
   {
     name: StoreKey.Config,
-    version: 4.1,
+    version: 4.2,
 
     merge(persistedState, currentState) {
       const state = persistedState as ChatConfig | undefined;
       if (!state) return { ...currentState };
       const models = currentState.models.slice();
       state.models.forEach((pModel) => {
+        const persistedProvider =
+          pModel.provider?.providerName ?? pModel.provider?.id;
+        if (isLegacyDeepSeekModel(pModel.name, persistedProvider)) return;
         const idx = models.findIndex(
-          (v) => v.name === pModel.name && v.provider === pModel.provider,
+          (v) =>
+            v.name === pModel.name && v.provider?.id === pModel.provider?.id,
         );
         if (idx !== -1) models[idx] = pModel;
         else models.push(pModel);
@@ -254,6 +262,10 @@ export const useAppConfig = createPersistStore(
           DEFAULT_CONFIG.modelConfig.compressModel;
         state.modelConfig.compressProviderName =
           DEFAULT_CONFIG.modelConfig.compressProviderName;
+      }
+
+      if (version < 4.2) {
+        migrateLegacyDeepSeekModelConfig(state.modelConfig);
       }
 
       return state as any;

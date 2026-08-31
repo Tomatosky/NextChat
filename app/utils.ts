@@ -304,10 +304,37 @@ export function getTimeoutMSByModel(model: string) {
     model.startsWith("o1") ||
     model.startsWith("o3") ||
     model.includes("deepseek-r") ||
+    model.startsWith("deepseek-v4") ||
     model.includes("-thinking")
   )
     return REQUEST_TIMEOUT_MS_FOR_THINKING;
   return REQUEST_TIMEOUT_MS;
+}
+
+const DEEPSEEK_V4_CONTEXT_WINDOW = 1_000_000;
+const DEEPSEEK_V4_MAX_OUTPUT_TOKENS = 384 * 1024;
+
+export function isDeepSeekV4Model(model: string) {
+  return model.toLowerCase().startsWith("deepseek-v4");
+}
+
+export function getMaxOutputTokensByModel(model: string, requested: number) {
+  const normalized = Math.max(requested, 1);
+  return isDeepSeekV4Model(model)
+    ? Math.min(normalized, DEEPSEEK_V4_MAX_OUTPUT_TOKENS)
+    : normalized;
+}
+
+export function getInputTokenBudgetByModel(
+  model: string,
+  fallback: number,
+  requestedOutputTokens: number,
+) {
+  if (!isDeepSeekV4Model(model)) return fallback;
+  return (
+    DEEPSEEK_V4_CONTEXT_WINDOW -
+    getMaxOutputTokensByModel(model, requestedOutputTokens)
+  );
 }
 
 export function getModelSizes(model: string): ModelSize[] {

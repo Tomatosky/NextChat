@@ -18,12 +18,25 @@ import {
 } from "../api";
 import { getClientConfig } from "@/app/config/client";
 import {
+  getMaxOutputTokensByModel,
   getMessageTextContent,
   getMessageTextContentWithoutThinking,
   getTimeoutMSByModel,
 } from "@/app/utils";
-import { RequestPayload } from "./openai";
 import { fetch } from "@/app/utils/stream";
+
+interface DeepSeekRequestPayload {
+  messages: ChatOptions["messages"];
+  stream?: boolean;
+  model: string;
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  thinking?: {
+    type: "enabled" | "disabled";
+  };
+  reasoning_effort?: "high";
+}
 
 export class DeepSeekApi implements LLMApi {
   private disableListModels = true;
@@ -103,17 +116,31 @@ export class DeepSeekApi implements LLMApi {
       },
     };
 
-    const requestPayload: RequestPayload = {
+    const requestPayload: DeepSeekRequestPayload = {
       messages: filteredMessages,
       stream: options.config.stream,
       model: modelConfig.model,
-      temperature: modelConfig.temperature,
-      presence_penalty: modelConfig.presence_penalty,
-      frequency_penalty: modelConfig.frequency_penalty,
-      top_p: modelConfig.top_p,
-      // max_tokens: Math.max(modelConfig.max_tokens, 1024),
-      // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
+
+    if (modelConfig.model.toLowerCase().startsWith("deepseek-v4")) {
+      const enableThinking = modelConfig.enable_thinking ?? false;
+      requestPayload.thinking = {
+        type: enableThinking ? "enabled" : "disabled",
+      };
+      if (enableThinking) {
+        requestPayload.reasoning_effort = "high";
+      } else {
+        requestPayload.temperature = modelConfig.temperature;
+        requestPayload.top_p = modelConfig.top_p;
+      }
+      requestPayload.max_tokens = getMaxOutputTokensByModel(
+        modelConfig.model,
+        modelConfig.max_tokens,
+      );
+    } else {
+      requestPayload.temperature = modelConfig.temperature;
+      requestPayload.top_p = modelConfig.top_p;
+    }
 
     console.log("[Request] openai payload: ", requestPayload);
 
@@ -137,6 +164,7 @@ export class DeepSeekApi implements LLMApi {
       );
 
       if (shouldStream) {
+        clearTimeout(requestTimeoutId);
         const [tools, funcs] = usePluginStore
           .getState()
           .getAsTools(
@@ -212,7 +240,7 @@ export class DeepSeekApi implements LLMApi {
           },
           // processToolMessage, include tool_calls message and tool call results
           (
-            requestPayload: RequestPayload,
+            requestPayload: DeepSeekRequestPayload,
             toolCallMessage: any,
             toolCallResult: any[],
           ) => {
@@ -226,6 +254,7 @@ export class DeepSeekApi implements LLMApi {
             );
           },
           options,
+          getTimeoutMSByModel(options.config.model),
         );
       } else {
         const res = await fetch(chatPath, chatPayload);

@@ -203,11 +203,13 @@ ChatGLM Api Url.
 
 ### `DEEPSEEK_API_KEY` (可选)
 
-DeepSeek Api Key.
+DeepSeek API Key。配置后可使用内置的 `deepseek-v4-flash` 和 `deepseek-v4-pro` 模型。
 
 ### `DEEPSEEK_URL` (可选)
 
-DeepSeek Api Url.
+DeepSeek API 地址，默认为 `https://api.deepseek.com`。使用官方服务时无需配置；使用代理或兼容服务时填写对应的基础地址。
+
+最小配置只需设置 `DEEPSEEK_API_KEY`，重新部署后在模型列表中选择 `deepseek-v4-flash` 或 `deepseek-v4-pro`。
 
 ### `HIDE_USER_API_KEY` （可选）
 

@@ -409,6 +409,7 @@ export function streamWithThink(
     toolCallResult: any[],
   ) => void,
   options: any,
+  requestTimeoutMs = REQUEST_TIMEOUT_MS,
 ) {
   let responseText = "";
   let remainText = "";
@@ -540,7 +541,7 @@ export function streamWithThink(
     };
     const requestTimeoutId = setTimeout(
       () => controller.abort(),
-      REQUEST_TIMEOUT_MS,
+      requestTimeoutMs,
     );
     fetchEventSource(chatPath, {
       fetch: tauriFetch as any,

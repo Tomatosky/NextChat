@@ -276,11 +276,13 @@ ChatGLM Api Url.
 
 ### `DEEPSEEK_API_KEY` (optional)
 
-DeepSeek Api Key.
+DeepSeek API key. Once configured, the built-in `deepseek-v4-flash` and `deepseek-v4-pro` models are available.
 
 ### `DEEPSEEK_URL` (optional)
 
-DeepSeek Api Url.
+DeepSeek API base URL. It defaults to `https://api.deepseek.com`; leave it unset for the official service, or set it when using a proxy or compatible service.
+
+For a minimal setup, set only `DEEPSEEK_API_KEY`, redeploy, and select `deepseek-v4-flash` or `deepseek-v4-pro` from the model list.
 
 ### `HIDE_USER_API_KEY` (optional)
 
