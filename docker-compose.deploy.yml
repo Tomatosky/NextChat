@@ -1,0 +1,30 @@
+services:
+  next-chat:
+    image: node:22-bookworm-slim
+    container_name: next-chat
+    restart: always
+    init: true
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "9009:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+      NODE_ENV: production
+      PORT: "3000"
+      TZ: Asia/Shanghai
+      OPENAI_API_KEY: ""
+      BASE_URL: https://api.deepseek.com
+      CODE: ""
+      DEEPSEEK_URL: https://api.deepseek.com
+      DEEPSEEK_API_KEY: ""
+      ENABLE_BALANCE_QUERY: "1"
+      DEFAULT_MODEL: deepseek-v4-flash
+      CUSTOM_MODELS: -all,+deepseek-v4-flash,+deepseek-v4-pro
+    volumes:
+      - ./app:/app:ro
+      - next-chat-cache:/app/.next/cache
+      - /etc/localtime:/etc/localtime:ro
+
+volumes:
+  next-chat-cache:
