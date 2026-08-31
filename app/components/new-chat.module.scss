@@ -3,10 +3,12 @@
 .new-chat {
   height: 100%;
   width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  overflow: hidden;
 
   .mask-header {
     display: flex;
@@ -66,11 +68,18 @@
   }
 
   .masks {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    overflow: auto;
-    align-items: center;
-    padding-top: 20px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 20px;
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    align-content: start;
+    gap: 10px;
 
     $linear: linear-gradient(
       to bottom,
@@ -84,42 +93,38 @@
 
     animation: slide-in ease 0.5s;
 
-    .mask-row {
+    .mask {
       display: flex;
-      // justify-content: center;
-      margin-bottom: 10px;
+      align-items: center;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      border: var(--border-in-light);
+      box-shadow: var(--card-shadow);
+      background-color: var(--white);
+      border-radius: 10px;
+      cursor: pointer;
+      transition:
+        transform ease 0.3s,
+        border-color ease 0.3s;
 
-      @for $i from 1 to 10 {
-        &:nth-child(#{$i * 2}) {
-          margin-left: 50px;
-        }
+      &:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary);
       }
 
-      .mask {
-        display: flex;
-        align-items: center;
-        padding: 10px 14px;
-        border: var(--border-in-light);
-        box-shadow: var(--card-shadow);
-        background-color: var(--white);
-        border-radius: 10px;
-        margin-right: 10px;
-        max-width: 8em;
-        transform: scale(1);
-        cursor: pointer;
-        transition: all ease 0.3s;
-
-        &:hover {
-          transform: translateY(-5px) scale(1.1);
-          z-index: 999;
-          border-color: var(--primary);
-        }
-
-        .mask-name {
-          margin-left: 10px;
-          font-size: 14px;
-        }
+      .mask-name {
+        min-width: 0;
+        margin-left: 10px;
+        font-size: 14px;
       }
+    }
+  }
+
+  @media screen and (max-width: 360px) {
+    .masks {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }
