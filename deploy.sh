@@ -31,26 +31,48 @@ compose() {
     "$@"
 }
 
-wait_until_healthy() {
+wait_until_ready() {
   local status
   local attempt
+  local probe_output=""
 
   for attempt in {1..30}; do
     status="$(docker inspect \
-      --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+      --format '{{.State.Status}}' \
       next-chat 2>/dev/null || true)"
 
     case "$status" in
-      healthy)
-        return 0
+      running)
+        if probe_output="$(docker exec next-chat node -e '
+          (async () => {
+            const response = await fetch("http://127.0.0.1:3000/api/config", {
+              signal: AbortSignal.timeout(3000),
+            });
+            if (!response.ok) {
+              const body = await response.text();
+              throw new Error(`HTTP ${response.status}: ${body.slice(0, 500)}`);
+            }
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+        ' 2>&1)"; then
+          return 0
+        fi
         ;;
-      unhealthy | exited | dead)
+      exited | dead)
+        log "容器状态异常：$status"
         return 1
         ;;
     esac
 
     sleep 2
   done
+
+  log "应用健康检查超时，容器状态：${status:-不存在}"
+  if [[ -n "$probe_output" ]]; then
+    printf '[NextChat] 最后一次探测错误：%s\n' "$probe_output" >&2
+  fi
 
   return 1
 }
@@ -128,7 +150,7 @@ mv -- "$stage_dir" "$APP_DIR"
 stage_dir=""
 
 log "重建 next-chat 容器"
-if compose up --detach --force-recreate && wait_until_healthy; then
+if compose up --detach --force-recreate && wait_until_ready; then
   if [[ -d "$previous_dir" ]]; then
     rm -rf -- "$previous_dir"
   fi
